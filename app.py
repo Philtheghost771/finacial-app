@@ -90,3 +90,47 @@ if not st.session_state["movimientos"].empty:
 
 else:
     st.info("Todavía no has registrado movimientos.")
+
+    import streamlit as st
+
+# Diccionario de traducciones
+translations = {
+    "en": {
+        "title": "Personal Finance App",
+        "welcome": "Welcome to your personal finance dashboard!",
+        "balance": "Your balance is:",
+        "expenses": "Expenses",
+        "income": "Income",
+    },
+    "es": {
+        "title": "Aplicación de Finanzas Personales",
+        "welcome": "¡Bienvenido a tu panel de finanzas personales!",
+        "balance": "Tu saldo es:",
+        "expenses": "Gastos",
+        "income": "Ingresos",
+    }
+}
+
+# --- Selección de idioma ---
+lang = st.sidebar.selectbox("Choose your language", ["en", "es"])
+
+# Función para traducir textos
+def t(key):
+    return translations[lang].get(key, key)
+
+# --- Interfaz principal ---
+st.title(t("title"))
+st.write(t("welcome"))
+
+# Ejemplo de datos
+balance = 1200
+expenses = 500
+income = 1700
+
+# Mostrar métricas
+st.metric(t("balance"), f"${balance}")
+st.subheader(t("expenses"))
+st.write(f"${expenses}")
+
+st.subheader(t("income"))
+st.write(f"${income}")
