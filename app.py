@@ -1,136 +1,163 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
-from datetime import date
+import plotly.express as px
+from datetime import datetime
 
-# --- Configuración inicial ---
-st.set_page_config(page_title="Gestor Financiero", page_icon="💰", layout="centered")
+# ============================
+# Configuración inicial
+# ============================
+st.set_page_config(
+    page_title="💰 Personal Finance Manager",
+    page_icon="💰",
+    layout="wide"
+)
 
-# Inicializar datos en la sesión
-if "movimientos" not in st.session_state:
-    st.session_state["movimientos"] = pd.DataFrame(columns=["Fecha", "Tipo", "Categoría", "Monto"])
-
-# --- Configuración de moneda en el sidebar ---
-st.sidebar.header("⚙️ Configuración")
-moneda = st.sidebar.selectbox("Selecciona la moneda", ["USD ($)", "EUR (€)", "ARS ($)", "MXN ($)", "CLP ($)"])
-simbolos = {"USD ($)": "$", "EUR (€)": "€", "ARS ($)": "$", "MXN ($)": "$", "CLP ($)": "$","COP ($)": "$"}
-simbolo = simbolos[moneda]
-
-st.title("💰 Mi Gestor Financiero")
-
-# --- Opción para cargar archivo ---
-st.header("📂 Cargar movimientos desde archivo")
-archivo = st.file_uploader("Sube un archivo Excel (.xlsx) o CSV", type=["xlsx", "csv"])
-
-if archivo:
-    try:
-        if archivo.name.endswith(".csv"):
-            df = pd.read_csv(archivo)
-        else:
-            df = pd.read_excel(archivo)
-
-        # Si no tiene columna "Fecha", asignar la fecha de hoy
-        if "Fecha" not in df.columns:
-            df["Fecha"] = date.today()
-
-        # Verificar que tenga las columnas necesarias
-        if set(["Tipo", "Categoría", "Monto"]).issubset(df.columns):
-            st.session_state["movimientos"] = pd.concat(
-                [st.session_state["movimientos"], df], ignore_index=True
-            )
-            st.success("✅ Movimientos cargados desde archivo")
-        else:
-            st.error("❌ El archivo debe tener las columnas: Tipo, Categoría, Monto (y opcionalmente Fecha)")
-    except Exception as e:
-        st.error(f"Error al procesar el archivo: {e}")
-
-# --- Formulario de ingreso manual ---
-st.header("➕ Registrar movimiento manual")
-
-fecha = st.date_input("Fecha", date.today())
-tipo = st.selectbox("Tipo", ["Ingreso", "Egreso"])
-categoria = st.text_input("Categoría (ej: comida, salario, ocio)")
-monto = st.number_input("Monto", min_value=0.0, step=0.1)
-
-if st.button("Agregar manualmente"):
-    nuevo = {"Fecha": fecha, "Tipo": tipo, "Categoría": categoria, "Monto": monto}
-    st.session_state["movimientos"] = pd.concat(
-        [st.session_state["movimientos"], pd.DataFrame([nuevo])],
-        ignore_index=True
-    )
-    st.success("Movimiento agregado ✅")
-
-# --- Mostrar tabla de movimientos ---
-st.header("📋 Historial de movimientos")
-st.dataframe(st.session_state["movimientos"], width="stretch")
-
-# --- Mostrar gráficos y métricas ---
-if not st.session_state["movimientos"].empty:
-    st.header("📊 Visualización")
-
-    resumen = st.session_state["movimientos"].groupby("Tipo")["Monto"].sum()
-
-    fig, ax = plt.subplots()
-    resumen.plot(kind="bar", ax=ax, color=["green", "red"])
-    ax.set_ylabel(f"Monto total ({simbolo})")
-    ax.set_title("Ingresos vs Egresos")
-    st.pyplot(fig)
-
-    balance = resumen.get("Ingreso", 0) - resumen.get("Egreso", 0)
-    st.metric("Balance actual", f"{simbolo}{balance:,.2f}")
-
-    # --- Nuevo: gráfico por fechas ---
-    st.subheader("📆 Movimientos en el tiempo")
-    fig2, ax2 = plt.subplots()
-    st.session_state["movimientos"].groupby("Fecha")["Monto"].sum().plot(ax=ax2, marker="o")
-    ax2.set_ylabel(f"Monto ({simbolo})")
-    ax2.set_xlabel("Fecha")
-    ax2.set_title("Evolución de movimientos")
-    st.pyplot(fig2)
-
-else:
-    st.info("Todavía no has registrado movimientos.")
-
-    import streamlit as st
-
-# Diccionario de traducciones
+# ============================
+# Traducciones
+# ============================
 translations = {
     "en": {
-        "title": "Personal Finance App",
-        "welcome": "Welcome to your personal finance dashboard!",
-        "balance": "Your balance is:",
-        "expenses": "Expenses",
-        "income": "Income",
+        "title": "💰 Personal Finance Manager",
+        "upload": "📂 Upload your Excel or CSV file",
+        "add": "🧾 Add a transaction manually",
+        "type": "Type",
+        "amount": "Amount",
+        "date": "Date",
+        "add_btn": "Add Transaction",
+        "overview": "📊 Transactions Overview",
+        "total_income": "💵 Total Income",
+        "total_expense": "💸 Total Expense",
+        "chart_title": "Income vs Expense",
+        "upload_info": "Please upload a file or add transactions manually to see results.",
+        "success_add": "✅ Added {type} of {amount}{currency} on {date}"
     },
     "es": {
-        "title": "Aplicación de Finanzas Personales",
-        "welcome": "¡Bienvenido a tu panel de finanzas personales!",
-        "balance": "Tu saldo es:",
-        "expenses": "Gastos",
-        "income": "Ingresos",
+        "title": "💰 Gestor de Finanzas Personales",
+        "upload": "📂 Sube tu archivo Excel o CSV",
+        "add": "🧾 Añadir una transacción manualmente",
+        "type": "Tipo",
+        "amount": "Monto",
+        "date": "Fecha",
+        "add_btn": "Agregar Transacción",
+        "overview": "📊 Resumen de Transacciones",
+        "total_income": "💵 Ingresos Totales",
+        "total_expense": "💸 Gastos Totales",
+        "chart_title": "Ingresos vs Gastos",
+        "upload_info": "Por favor, sube un archivo o añade transacciones manualmente para ver los resultados.",
+        "success_add": "✅ Se agregó {type} de {amount}{currency} el {date}"
     }
 }
 
-# --- Selección de idioma ---
-lang = st.sidebar.selectbox("Choose your language", ["en", "es"])
+# ============================
+# Selector de idioma y moneda
+# ============================
+col_lang, col_currency = st.columns([2, 1])
 
-# Función para traducir textos
-def t(key):
-    return translations[lang].get(key, key)
+with col_lang:
+    lang = st.selectbox("🌐 Language / Idioma", ["English", "Español"])
+    lang_code = "en" if lang == "English" else "es"
 
-# --- Interfaz principal ---
-st.title(t("title"))
-st.write(t("welcome"))
+with col_currency:
+    currency = st.selectbox("💱 Currency", ["USD", "EUR", "COP", "GBP", "MXN"])
 
-# Ejemplo de datos
-balance = 1200
-expenses = 500
-income = 1700
+t = translations[lang_code]
 
-# Mostrar métricas
-st.metric(t("balance"), f"${balance}")
-st.subheader(t("expenses"))
-st.write(f"${expenses}")
+# ============================
+# Título
+# ============================
+st.title(t["title"])
+st.markdown("---")
 
-st.subheader(t("income"))
-st.write(f"${income}")
+# ============================
+# Variables de sesión
+# ============================
+if "manual_data" not in st.session_state:
+    st.session_state.manual_data = pd.DataFrame(columns=["Type", "Amount", "Date"])
+
+# ============================
+# Subida de archivo
+# ============================
+st.subheader(t["upload"])
+uploaded_file = st.file_uploader("📎", type=["xlsx", "csv"])
+
+# ============================
+# Formulario manual
+# ============================
+st.subheader(t["add"])
+
+with st.form("manual_entry_form"):
+    col1, col2, col3 = st.columns(3)
+    tipo = col1.selectbox(t["type"], ["Income", "Expense"] if lang_code == "en" else ["Ingreso", "Gasto"])
+    monto = col2.number_input(t["amount"], min_value=0.0, step=0.1)
+    fecha = col3.date_input(t["date"], datetime.today())
+
+    submitted = st.form_submit_button(t["add_btn"])
+
+if submitted:
+    type_en = "Income" if tipo in ["Income", "Ingreso"] else "Expense"
+    new_data = pd.DataFrame([{"Type": type_en, "Amount": monto, "Date": fecha}])
+    st.session_state.manual_data = pd.concat(
+        [st.session_state.manual_data, new_data], ignore_index=True
+    )
+    st.success(t["success_add"].format(type=tipo, amount=monto, currency=currency, date=fecha))
+
+# ============================
+# Procesar archivo subido
+# ============================
+df = pd.DataFrame()
+
+if uploaded_file is not None:
+    try:
+        if uploaded_file.name.endswith(".xlsx"):
+            df = pd.read_excel(uploaded_file)
+        elif uploaded_file.name.endswith(".csv"):
+            df = pd.read_csv(uploaded_file)
+        st.success("📄 File uploaded successfully!" if lang_code == "en" else "📄 Archivo cargado con éxito!")
+    except Exception as e:
+        st.error(f"❌ Error reading file: {e}")
+
+# ============================
+# Combinar datos
+# ============================
+if not df.empty or not st.session_state.manual_data.empty:
+    combined_df = pd.concat([df, st.session_state.manual_data], ignore_index=True)
+
+    st.markdown(f"### {t['overview']}")
+    st.dataframe(combined_df, use_container_width=True)
+
+    if "Type" in combined_df.columns and "Amount" in combined_df.columns:
+        df_summary = combined_df.groupby("Type")["Amount"].sum().reset_index()
+
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric(t["total_income"], f"{df_summary[df_summary['Type'] == 'Income']['Amount'].sum():,.2f} {currency}")
+        with col2:
+            st.metric(t["total_expense"], f"{df_summary[df_summary['Type'] == 'Expense']['Amount'].sum():,.2f} {currency}")
+
+        # ============================
+        # Gráfico de barras
+        # ============================
+        fig = px.bar(
+            df_summary,
+            x="Type",
+            y="Amount",
+            color="Type",
+            title=t["chart_title"],
+            text_auto=True,
+            color_discrete_sequence=px.colors.qualitative.Set2,
+        )
+        fig.update_layout(
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+            font=dict(size=14),
+            title_font=dict(size=20)
+        )
+        st.plotly_chart(fig, use_container_width=True)
+else:
+    st.info(t["upload_info"])
+
+# ============================
+# Pie de página
+# ============================
+st.markdown("---")
+st.caption(f"📅 {datetime.today().date()} | Created by Ghosty ❤️ Powered by Streamlit")
