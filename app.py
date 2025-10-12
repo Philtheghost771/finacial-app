@@ -158,6 +158,7 @@ else:
 
 # ============================
 # Pie de página
-# ============================
+# ============================streamlit run app.py
+
 st.markdown("---")
 st.caption(f"📅 {datetime.today().date()} | Created by Ghosty ❤️ Powered by Streamlit")
